@@ -256,11 +256,11 @@
         /* === ПЕРСОНАЖ === */
         .guy {
             position: absolute;
-            bottom: -10px;
-            right: -70px;
-            width: 130px;
+            bottom: -30px;
+            left: -140px;
+            width: 220px;
             opacity: 0;
-            transform: translateX(30px) translateY(20px) scale(0.85);
+            transform: translateX(-30px) translateY(20px) scale(0.85);
             transition: opacity 0.5s ease 0.3s, transform 0.5s ease 0.3s;
             pointer-events: none;
             z-index: 500;
@@ -285,22 +285,21 @@
         .guy-img {
             width: 100%;
             display: block;
-            filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.2));
             transform-origin: bottom center;
         }
 
         @media (max-width: 480px) {
             .guy {
-                width: 100px;
-                right: -45px;
-                bottom: -5px;
+                width: 160px;
+                left: -85px;
+                bottom: -15px;
             }
         }
 
         @media (max-width: 360px) {
             .guy {
-                width: 85px;
-                right: -30px;
+                width: 135px;
+                left: -60px;
             }
         }
 
