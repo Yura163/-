@@ -33,7 +33,7 @@
             padding: 20px;
         }
 
-        /* === ЛЕПЕСТКИ (ИСПРАВЛЕНО) === */
+        /* === ЛЕПЕСТКИ (летят из руки) === */
         .petals-container {
             position: fixed;
             top: 0;
@@ -42,30 +42,33 @@
             height: 100%;
             pointer-events: none;
             z-index: 1000;
-            overflow: hidden;
+            overflow: visible;
         }
 
         .petal {
-            position: absolute;
-            top: -50px;
-            font-size: 28px;
+            position: fixed;
+            font-size: 26px;
             opacity: 0;
-            animation: fall 6s linear forwards;
+            animation-name: throwFall;
+            animation-timing-function: ease-out;
+            animation-fill-mode: forwards;
+            will-change: transform, opacity;
         }
 
-        @keyframes fall {
+        @keyframes throwFall {
             0% {
-                transform: translateY(0) rotate(0deg);
+                transform: translate(0, 0) rotate(0deg) scale(0.5);
                 opacity: 0;
             }
-            10% {
-                opacity: 0.7;
+            12% {
+                opacity: 1;
+                transform: translate(calc(var(--dx) * 0.25), calc(var(--dy) * -0.35)) rotate(120deg) scale(1);
             }
-            90% {
-                opacity: 0.7;
+            45% {
+                transform: translate(calc(var(--dx) * 0.7), calc(var(--dy) * -0.1)) rotate(360deg) scale(1);
             }
             100% {
-                transform: translateY(110vh) rotate(720deg);
+                transform: translate(var(--dx), var(--dy)) rotate(900deg) scale(0.8);
                 opacity: 0;
             }
         }
@@ -257,8 +260,8 @@
         .guy {
             position: absolute;
             bottom: -30px;
-            left: -140px;
-            width: 220px;
+            left: -175px;
+            width: 270px;
             opacity: 0;
             transform: translateX(-30px) translateY(20px) scale(0.85);
             transition: opacity 0.5s ease 0.3s, transform 0.5s ease 0.3s;
@@ -272,14 +275,15 @@
         }
 
         .guy.show .guy-img {
-            animation: throw 0.7s ease-in-out 0.5s 2;
+            animation: throw 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.5s 3;
         }
 
         @keyframes throw {
-            0% { transform: rotate(0deg) translateY(0); }
-            30% { transform: rotate(-10deg) translateY(-6px); }
-            55% { transform: rotate(8deg) translateY(0); }
-            100% { transform: rotate(0deg) translateY(0); }
+            0% { transform: rotate(0deg) translateY(0) scale(1); }
+            25% { transform: rotate(-16deg) translateY(-14px) scale(1.05); }
+            50% { transform: rotate(10deg) translateY(2px) scale(0.98); }
+            75% { transform: rotate(-4deg) translateY(-4px) scale(1.02); }
+            100% { transform: rotate(0deg) translateY(0) scale(1); }
         }
 
         .guy-img {
@@ -290,16 +294,16 @@
 
         @media (max-width: 480px) {
             .guy {
-                width: 160px;
-                left: -85px;
+                width: 195px;
+                left: -105px;
                 bottom: -15px;
             }
         }
 
         @media (max-width: 360px) {
             .guy {
-                width: 135px;
-                left: -60px;
+                width: 165px;
+                left: -75px;
             }
         }
 
@@ -414,22 +418,37 @@
 
         function createPetals() {
             const emojis = ['🌸', '💮', '🌺', '💗', '✨'];
-            
-            // Создаём 20 лепестков
-            for (let i = 0; i < 20; i++) {
+
+            // Точка вылета — примерно в районе поднятой руки персонажа
+            // (по картинке рука находится справа-сверху фигуры)
+            const guyRect = guy.getBoundingClientRect();
+            const originX = guyRect.left + guyRect.width * 0.78;
+            const originY = guyRect.top + guyRect.height * 0.34;
+
+            for (let i = 0; i < 24; i++) {
                 setTimeout(() => {
                     const petal = document.createElement('div');
                     petal.className = 'petal';
                     petal.textContent = emojis[Math.floor(Math.random() * emojis.length)];
-                    petal.style.left = Math.random() * 100 + '%';
-                    petal.style.animationDuration = (Math.random() * 3 + 4) + 's';
+
+                    petal.style.left = originX + 'px';
+                    petal.style.top = originY + 'px';
+
+                    // Разлёт вправо/вверх (в сторону конверта), затем падение вниз
+                    const dx = (Math.random() * 260 + 60) + 'px';
+                    const dy = (window.innerHeight - originY + 120 + Math.random() * 100) + 'px';
+                    const dur = (Math.random() * 1.5 + 2.2) + 's';
+
+                    petal.style.setProperty('--dx', dx);
+                    petal.style.setProperty('--dy', dy);
+                    petal.style.animationDuration = dur;
+
                     petalsContainer.appendChild(petal);
-                    
-                    // Удаляем после анимации
+
                     setTimeout(() => {
                         petal.remove();
-                    }, 7000);
-                }, i * 200);
+                    }, 4200);
+                }, i * 90);
             }
         }
 
