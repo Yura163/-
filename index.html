@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Письмо для тебя 💌</title>
     <style>
+        :root {
+            --scene-max-width: 760px;
+            --guy-width: clamp(165px, 18vw, 230px);
+            --envelope-width: 340px;
+            --envelope-height: 240px;
+            --letter-width: 300px;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -13,8 +21,8 @@
         }
 
         html, body {
-            height: 100%;
             width: 100%;
+            min-height: 100%;
         }
 
         body {
@@ -23,57 +31,164 @@
             min-height: 100dvh;
             background: linear-gradient(135deg, #FFB6C1 0%, #FFC0CB 50%, #FFDAB9 100%);
             display: flex;
-            flex-direction: column;
             justify-content: center;
             align-items: center;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             overflow-x: hidden;
             overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
             padding: 20px;
+            color: #4a4a4a;
         }
 
-        /* === ЛЕПЕСТКИ (летят из руки) === */
-        .petals-container {
+        .petals-container,
+        .flower-burst-layer {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            inset: 0;
             pointer-events: none;
+            overflow: hidden;
+        }
+
+        .petals-container {
             z-index: 1000;
-            overflow: visible;
+        }
+
+        .flower-burst-layer {
+            z-index: 1100;
         }
 
         .petal {
-            position: fixed;
-            font-size: 26px;
+            position: absolute;
+            top: -50px;
+            font-size: 28px;
             opacity: 0;
-            animation-name: throwFall;
-            animation-timing-function: ease-out;
-            animation-fill-mode: forwards;
-            will-change: transform, opacity;
+            animation: fall linear forwards;
         }
 
-        @keyframes throwFall {
+        @keyframes fall {
             0% {
-                transform: translate(0, 0) rotate(0deg) scale(0.5);
+                transform: translate3d(0, 0, 0) rotate(0deg) scale(0.9);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.85;
+            }
+            90% {
+                opacity: 0.8;
+            }
+            100% {
+                transform: translate3d(var(--drift-x, 10px), 110vh, 0) rotate(720deg) scale(1.05);
+                opacity: 0;
+            }
+        }
+
+        .flower-burst {
+            position: fixed;
+            left: 0;
+            top: 0;
+            font-size: clamp(22px, 2.2vw, 30px);
+            line-height: 1;
+            transform: translate3d(var(--start-x), var(--start-y), 0) scale(0.7) rotate(0deg);
+            animation: flowerFlight var(--duration, 1.4s) cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+            filter: drop-shadow(0 10px 10px rgba(0, 0, 0, 0.12));
+            will-change: transform, opacity;
+            opacity: 0;
+        }
+
+        @keyframes flowerFlight {
+            0% {
+                transform: translate3d(var(--start-x), var(--start-y), 0) scale(0.45) rotate(0deg);
                 opacity: 0;
             }
             12% {
                 opacity: 1;
-                transform: translate(calc(var(--dx) * 0.25), calc(var(--dy) * -0.35)) rotate(120deg) scale(1);
-            }
-            45% {
-                transform: translate(calc(var(--dx) * 0.7), calc(var(--dy) * -0.1)) rotate(360deg) scale(1);
             }
             100% {
-                transform: translate(var(--dx), var(--dy)) rotate(900deg) scale(0.8);
+                transform: translate3d(calc(var(--start-x) + var(--travel-x)), calc(var(--start-y) + var(--travel-y)), 0)
+                           scale(var(--end-scale, 1)) rotate(var(--spin, 180deg));
                 opacity: 0;
             }
         }
 
-        /* === КОНВЕРТ === */
+        .stage {
+            width: min(100%, var(--scene-max-width));
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 24px;
+            padding: 12px 10px;
+        }
+
+        .scene {
+            position: relative;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            gap: clamp(14px, 3vw, 34px);
+            min-height: 430px;
+        }
+
+        .guy {
+            position: relative;
+            width: var(--guy-width);
+            flex: 0 0 auto;
+            align-self: flex-end;
+            z-index: 4;
+        }
+
+        .guy-inner {
+            position: relative;
+            width: 100%;
+            animation: idleFloat 4s ease-in-out infinite;
+            transform-origin: bottom center;
+        }
+
+        .guy-img {
+            width: 100%;
+            height: auto;
+            display: block;
+            object-fit: contain;
+            filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.18));
+        }
+
+        .guy.throwing .guy-inner {
+            animation: giftPose 0.85s ease-in-out 2;
+        }
+
+        .hand-anchor {
+            position: absolute;
+            top: 30%;
+            right: 10%;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        @keyframes idleFloat {
+            0%, 100% {
+                transform: translateY(0) rotate(0deg);
+            }
+            50% {
+                transform: translateY(-7px) rotate(-1deg);
+            }
+        }
+
+        @keyframes giftPose {
+            0% {
+                transform: translateY(0) rotate(0deg) scale(1);
+            }
+            30% {
+                transform: translateY(-10px) rotate(-3deg) scale(1.02);
+            }
+            60% {
+                transform: translateY(0) rotate(2deg) scale(1.01);
+            }
+            100% {
+                transform: translateY(0) rotate(0deg) scale(1);
+            }
+        }
+
         .envelope-wrapper {
             position: relative;
             display: flex;
@@ -83,17 +198,16 @@
 
         .envelope {
             position: relative;
-            width: 340px;
-            height: 240px;
+            width: var(--envelope-width);
+            height: var(--envelope-height);
             cursor: pointer;
             transition: transform 0.3s ease;
             touch-action: manipulation;
-            -webkit-perspective: 1000px;
             perspective: 1000px;
         }
 
         .envelope:active {
-            transform: scale(0.98);
+            transform: scale(0.985);
         }
 
         .envelope-back {
@@ -102,24 +216,19 @@
             height: 100%;
             background: #F5DEB3;
             border-radius: 12px;
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.25);
+            box-shadow: 0 18px 42px rgba(0, 0, 0, 0.18);
         }
 
         .envelope-flap {
             position: absolute;
-            top: 0;
-            left: 0;
+            inset: 0 0 auto;
             width: 100%;
             height: 120px;
             background: #DEB887;
             clip-path: polygon(0 0, 50% 100%, 100% 0);
-            -webkit-transform-origin: top center;
             transform-origin: top center;
-            -webkit-transition: -webkit-transform 0.6s ease;
             transition: transform 0.6s ease;
-            -webkit-transform-style: preserve-3d;
             transform-style: preserve-3d;
-            -webkit-backface-visibility: hidden;
             backface-visibility: hidden;
             z-index: 2;
         }
@@ -132,7 +241,7 @@
             transform: translateX(-50%);
             width: 80%;
             height: 2px;
-            background: rgba(0, 0, 0, 0.1);
+            background: rgba(0, 0, 0, 0.08);
         }
 
         .envelope-left,
@@ -165,17 +274,16 @@
             pointer-events: none;
         }
 
-        /* === ПИСЬМО === */
         .letter {
             position: absolute;
             top: 30px;
             left: 50%;
             transform: translateX(-50%) translateY(0);
-            width: 300px;
+            width: var(--letter-width);
             min-height: 380px;
-            background: #FFFFFF;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.10);
             padding: 25px 22px;
             z-index: 1;
             opacity: 0;
@@ -201,20 +309,18 @@
             margin-top: 18px;
         }
 
-        /* === КНОПКА (ИСПРАВЛЕНА) === */
         .btn {
-            margin-top: 35px;
+            margin-top: 10px;
             padding: 16px 45px;
             font-size: 18px;
             font-weight: 600;
-            color: #FFFFFF;
+            color: #fff;
             background: linear-gradient(135deg, #FF69B4, #FF1493);
             border: none;
             border-radius: 50px;
             cursor: pointer;
-            box-shadow: 0 6px 25px rgba(255, 105, 180, 0.4);
-            transition: all 0.3s ease;
-            
+            box-shadow: 0 8px 26px rgba(255, 105, 180, 0.4);
+            transition: transform 0.25s ease, box-shadow 0.25s ease, opacity 0.25s ease;
             position: relative;
             z-index: 200;
             touch-action: manipulation;
@@ -227,21 +333,20 @@
 
         .btn:hover {
             transform: translateY(-3px);
-            box-shadow: 0 10px 30px rgba(255, 105, 180, 0.5);
+            box-shadow: 0 12px 30px rgba(255, 105, 180, 0.48);
         }
 
         .btn:active {
-            transform: scale(0.95);
-            background: linear-gradient(135deg, #FF1493, #FF69B4);
+            transform: scale(0.97);
         }
 
         .btn.hidden {
-            display: none;
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
         }
 
-        /* === АНИМАЦИЯ ОТКРЫТИЯ === */
         .envelope.open .envelope-flap {
-            -webkit-transform: rotateX(180deg);
             transform: rotateX(180deg);
         }
 
@@ -256,106 +361,61 @@
             opacity: 0;
         }
 
-        /* === ПЕРСОНАЖ === */
-        .guy {
-            position: absolute;
-            bottom: -30px;
-            left: -175px;
-            width: 270px;
-            opacity: 0;
-            transform: translateX(-30px) translateY(20px) scale(0.85);
-            transition: opacity 0.5s ease 0.3s, transform 0.5s ease 0.3s;
-            pointer-events: none;
-            z-index: 500;
-        }
-
-        .guy.show {
-            opacity: 1;
-            transform: translateX(0) translateY(0) scale(1);
-        }
-
-        .guy.show .guy-img {
-            animation: throw 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.5s 3;
-        }
-
-        @keyframes throw {
-            0% { transform: rotate(0deg) translateY(0) scale(1); }
-            25% { transform: rotate(-16deg) translateY(-14px) scale(1.05); }
-            50% { transform: rotate(10deg) translateY(2px) scale(0.98); }
-            75% { transform: rotate(-4deg) translateY(-4px) scale(1.02); }
-            100% { transform: rotate(0deg) translateY(0) scale(1); }
-        }
-
-        .guy-img {
-            width: 100%;
-            display: block;
-            transform-origin: bottom center;
-        }
-
-        @media (max-width: 480px) {
-            .guy {
-                width: 195px;
-                left: -105px;
-                bottom: -15px;
+        @media (max-width: 700px) {
+            :root {
+                --guy-width: 145px;
+                --envelope-width: 300px;
+                --envelope-height: 210px;
+                --letter-width: 270px;
             }
-        }
 
-        @media (max-width: 360px) {
-            .guy {
-                width: 165px;
-                left: -75px;
-            }
-        }
-
-        /* === АДАПТИВНОСТЬ === */
-        @media (max-width: 480px) {
-            .envelope {
-                width: 290px;
-                height: 200px;
+            .scene {
+                min-height: 380px;
+                gap: 12px;
             }
 
             .envelope-flap {
-                height: 100px;
+                height: 105px;
             }
 
             .letter {
-                width: 255px;
-                min-height: 320px;
+                min-height: 330px;
                 padding: 20px 18px;
             }
 
             .letter-content {
                 font-size: 12px;
-                line-height: 1.6;
-            }
-
-            .heart {
-                font-size: 40px;
-            }
-
-            .btn {
-                padding: 18px 50px;
-                font-size: 17px;
-                margin-top: 40px;
+                line-height: 1.62;
             }
 
             .envelope.open .letter {
-                transform: translateX(-50%) translateY(-150px);
+                transform: translateX(-50%) translateY(-155px);
             }
         }
 
-        @media (max-width: 360px) {
-            .envelope {
-                width: 260px;
-                height: 175px;
+        @media (max-width: 480px) {
+            :root {
+                --guy-width: 118px;
+                --envelope-width: 260px;
+                --envelope-height: 185px;
+                --letter-width: 228px;
+            }
+
+            body {
+                padding: 16px 10px 20px;
+            }
+
+            .scene {
+                min-height: 335px;
+                gap: 8px;
+                align-items: flex-end;
             }
 
             .envelope-flap {
-                height: 88px;
+                height: 92px;
             }
 
             .letter {
-                width: 230px;
                 min-height: 280px;
                 padding: 18px 15px;
             }
@@ -366,115 +426,192 @@
             }
 
             .heart {
-                font-size: 34px;
+                font-size: 38px;
             }
 
             .btn {
-                padding: 16px 40px;
+                width: min(100%, 290px);
+                min-width: 0;
+                padding: 16px 28px;
+                font-size: 17px;
+            }
+
+            .envelope.open .letter {
+                transform: translateX(-50%) translateY(-132px);
+            }
+        }
+
+        @media (max-width: 360px) {
+            :root {
+                --guy-width: 102px;
+                --envelope-width: 238px;
+                --envelope-height: 170px;
+                --letter-width: 210px;
+            }
+
+            .scene {
+                min-height: 305px;
+            }
+
+            .envelope-flap {
+                height: 84px;
+            }
+
+            .letter {
+                min-height: 260px;
+            }
+
+            .btn {
                 font-size: 16px;
             }
 
             .envelope.open .letter {
-                transform: translateX(-50%) translateY(-130px);
+                transform: translateX(-50%) translateY(-120px);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+
+            .guy-inner {
+                animation: none !important;
             }
         }
     </style>
 </head>
 <body>
-    <!-- Контейнер для лепестков (в начале body) -->
-    <div class="petals-container" id="petals"></div>
+    <div class="petals-container" id="petals" aria-hidden="true"></div>
+    <div class="flower-burst-layer" id="flowerBurstLayer" aria-hidden="true"></div>
 
-    <!-- Конверт -->
-    <div class="envelope-wrapper">
-        <div class="envelope" id="envelope">
-            <div class="envelope-back"></div>
-            <div class="envelope-left"></div>
-            <div class="envelope-right"></div>
-            <div class="envelope-flap"></div>
-            <div class="heart">💕</div>
-            
-            <div class="letter">
-                <div class="letter-content">
-                    <p>Текст</p>
-
+    <main class="stage">
+        <div class="scene">
+            <div class="guy" id="guy" aria-hidden="true">
+                <div class="guy-inner">
+                    <img class="guy-img" src="guy.png" alt="">
+                    <span class="hand-anchor" id="handAnchor"></span>
                 </div>
             </div>
-        </div>
 
-        <!-- Персонаж -->
-        <div class="guy" id="guy">
-            <img class="guy-img" src="guy.png" alt="">
-        </div>
+            <div class="envelope-wrapper">
+                <div class="envelope" id="envelope" role="button" tabindex="0" aria-label="Открыть конверт">
+                    <div class="envelope-back"></div>
+                    <div class="envelope-left"></div>
+                    <div class="envelope-right"></div>
+                    <div class="envelope-flap"></div>
+                    <div class="heart">💕</div>
+                    <div class="letter">
+                        <div class="letter-content">
+                            <p>Текст</p>
+                        </div>
+                    </div>
+                </div>
 
-        <!-- Кнопка отдельно -->
-        <button class="btn" id="openBtn">Открыть конверт 💌</button>
-    </div>
+                <button class="btn" id="openBtn" type="button">Открыть конверт 💌</button>
+            </div>
+        </div>
+    </main>
 
     <script>
         const envelope = document.getElementById('envelope');
         const openBtn = document.getElementById('openBtn');
         const petalsContainer = document.getElementById('petals');
+        const flowerBurstLayer = document.getElementById('flowerBurstLayer');
         const guy = document.getElementById('guy');
+        const handAnchor = document.getElementById('handAnchor');
+        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        let isOpened = false;
 
-        function createPetals() {
+        function createPetals(count = 20) {
             const emojis = ['🌸', '💮', '🌺', '💗', '✨'];
 
-            // Точка вылета — примерно в районе поднятой руки персонажа
-            // (по картинке рука находится справа-сверху фигуры)
-            const guyRect = guy.getBoundingClientRect();
-            const originX = guyRect.left + guyRect.width * 0.78;
-            const originY = guyRect.top + guyRect.height * 0.34;
-
-            for (let i = 0; i < 24; i++) {
+            for (let i = 0; i < count; i++) {
                 setTimeout(() => {
                     const petal = document.createElement('div');
                     petal.className = 'petal';
                     petal.textContent = emojis[Math.floor(Math.random() * emojis.length)];
-
-                    petal.style.left = originX + 'px';
-                    petal.style.top = originY + 'px';
-
-                    // Разлёт вправо/вверх (в сторону конверта), затем падение вниз
-                    const dx = (Math.random() * 260 + 60) + 'px';
-                    const dy = (window.innerHeight - originY + 120 + Math.random() * 100) + 'px';
-                    const dur = (Math.random() * 1.5 + 2.2) + 's';
-
-                    petal.style.setProperty('--dx', dx);
-                    petal.style.setProperty('--dy', dy);
-                    petal.style.animationDuration = dur;
-
+                    petal.style.left = Math.random() * 100 + '%';
+                    petal.style.setProperty('--drift-x', `${Math.random() * 100 - 50}px`);
+                    petal.style.animationDuration = `${Math.random() * 2.5 + 4.5}s`;
                     petalsContainer.appendChild(petal);
 
-                    setTimeout(() => {
-                        petal.remove();
-                    }, 4200);
-                }, i * 90);
+                    setTimeout(() => petal.remove(), 7500);
+                }, i * 130);
             }
+        }
+
+        function launchFlowersFromHand(count = 14) {
+            const handRect = handAnchor.getBoundingClientRect();
+            const envelopeRect = envelope.getBoundingClientRect();
+            const startX = handRect.left + handRect.width / 2;
+            const startY = handRect.top + handRect.height / 2;
+            const flowerPool = ['🌷', '🌸', '🌺', '💮', '🌼', '✨'];
+            const targetCenterX = envelopeRect.left + envelopeRect.width * 0.52;
+            const targetCenterY = envelopeRect.top + envelopeRect.height * 0.2;
+
+            for (let i = 0; i < count; i++) {
+                const flower = document.createElement('span');
+                flower.className = 'flower-burst';
+                flower.textContent = flowerPool[Math.floor(Math.random() * flowerPool.length)];
+
+                const spreadX = (targetCenterX - startX) + (Math.random() * 180 - 90);
+                const spreadY = (targetCenterY - startY) + (Math.random() * 170 - 110);
+                const spin = Math.random() * 420 - 210;
+                const duration = prefersReducedMotion ? 0.3 : (1.1 + Math.random() * 0.55);
+                const scale = 0.82 + Math.random() * 0.5;
+
+                flower.style.setProperty('--start-x', `${startX}px`);
+                flower.style.setProperty('--start-y', `${startY}px`);
+                flower.style.setProperty('--travel-x', `${spreadX}px`);
+                flower.style.setProperty('--travel-y', `${spreadY}px`);
+                flower.style.setProperty('--spin', `${spin}deg`);
+                flower.style.setProperty('--duration', `${duration}s`);
+                flower.style.setProperty('--end-scale', String(scale));
+                flower.style.animationDelay = `${i * (prefersReducedMotion ? 0.01 : 0.05)}s`;
+
+                flowerBurstLayer.appendChild(flower);
+                setTimeout(() => flower.remove(), (duration + 0.2) * 1000 + i * 50);
+            }
+        }
+
+        function triggerGuyAnimation() {
+            guy.classList.remove('throwing');
+            void guy.offsetWidth;
+            guy.classList.add('throwing');
+            setTimeout(() => guy.classList.remove('throwing'), 1800);
         }
 
         function openEnvelope() {
-            if (!envelope.classList.contains('open')) {
-                envelope.classList.add('open');
-                openBtn.classList.add('hidden');
-                createPetals();
-                guy.classList.add('show');
-                console.log('Конверт открыт!');
+            if (isOpened) return;
+            isOpened = true;
+            envelope.classList.add('open');
+            triggerGuyAnimation();
+
+            if (!prefersReducedMotion) {
+                launchFlowersFromHand(16);
+                createPetals(20);
+            } else {
+                createPetals(6);
             }
+
+            setTimeout(() => openBtn.classList.add('hidden'), 650);
         }
 
-        // Единый обработчик и для кнопки, и для конверта.
-        // Используем только click — на iOS Safari он корректно
-        // срабатывает и от тапа, и от клика мышью, без конфликтов
-        // с touchend (которые в некоторых WebView, например Telegram,
-        // мешали открытию).
-        openBtn.addEventListener('click', function(e) {
-            e.preventDefault();
+        function handleOpenAction(event) {
+            event.preventDefault();
             openEnvelope();
-        });
+        }
 
-        envelope.addEventListener('click', function(e) {
-            e.preventDefault();
-            openEnvelope();
+        openBtn.addEventListener('click', handleOpenAction);
+        envelope.addEventListener('click', handleOpenAction);
+        envelope.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                handleOpenAction(event);
+            }
         });
     </script>
 </body>
