@@ -39,7 +39,8 @@
     .decor-layer { z-index: 1; }
     .rain-layer { z-index: 2; }
     .ground-layer { position: fixed; left: 0; right: 0; bottom: 0; height: 105px; z-index: 3; pointer-events: none; }
-    .burst-layer { z-index: 30; }
+    .scatter-layer { z-index: 4; }
+    .burst-layer { z-index: 4; }
     .wind-layer { z-index: 31; }
 
     .floating-heart {
@@ -53,6 +54,18 @@
     @keyframes heartFloat {
       0%, 100% { transform: translateY(0) rotate(-3deg); }
       50% { transform: translateY(-12px) rotate(3deg); }
+    }
+
+
+    .scatter-flower {
+      position: absolute;
+      left: 0;
+      top: 0;
+      font-size: var(--size, 24px);
+      line-height: 1;
+      opacity: var(--opacity, .88);
+      transform: translate3d(var(--x, 0px), var(--y, 0px), 0) rotate(var(--rot, 0deg));
+      filter: drop-shadow(0 4px 4px rgba(0,0,0,.06));
     }
 
     .falling-flower {
@@ -409,16 +422,20 @@
     }
 
     @media (max-width: 480px) {
-      :root { --env-w: 294px; --env-h: 189px; --letter-w: 256px; --guy-w: 172px; }
-      .scene { padding: 10px 8px 110px; }
+      :root { --env-w: 294px; --env-h: 189px; --letter-w: 256px; --guy-w: 154px; }
+      .scene { padding: 10px 8px 122px; }
       .envelope-stage { height: calc(var(--env-h) + 88px); }
       .seal { width: 86px; height: 86px; padding: 13px; font-size: 9.5px; border-width: 3px; }
       .seal::before { inset: 9px; border-width: 1.5px; }
-      .letter-slot { padding: 14px 10px 96px; align-items: center; }
-      .letter { width: calc(100vw - 24px); max-height: 72vh; padding: 22px 19px 26px; }
+      .letter-slot {
+        padding: 16px 10px calc(190px + env(safe-area-inset-bottom, 0px));
+        align-content: start;
+        justify-items: center;
+      }
+      .letter { width: calc(100vw - 24px); max-height: 62vh; padding: 22px 19px 26px; margin-top: 24px; }
       .letter-content { font-size: 11.5px; line-height: 1.66; }
       .open-btn { width: min(100%, 290px); min-width: 0; font-size: 17px; padding: 14px 22px; }
-      .guy-corner { left: 3px; bottom: 2px; }
+      .guy-corner { left: 8px; bottom: calc(env(safe-area-inset-bottom, 0px) + 8px); }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -428,6 +445,7 @@
 </head>
 <body>
   <div class="decor-layer" id="decorLayer" aria-hidden="true"></div>
+  <div class="scatter-layer" id="scatterLayer" aria-hidden="true"></div>
   <div class="rain-layer" id="rainLayer" aria-hidden="true"></div>
   <div class="ground-layer" id="groundLayer" aria-hidden="true"></div>
   <div class="burst-layer" id="burstLayer" aria-hidden="true"></div>
@@ -497,7 +515,9 @@
 Вчерашний вечер без тебя был просто отстойный... Грусть и тоска овладели мной, ведь рядом не было любимого человечка!
 
 P.S. Надеюсь на понимание и неосуждение с вашей стороны.
+
 <span class="divider">═══════════════════════════</span>
+
 📋 План действий на сегодня-завтра (на согласовании):
 
 1️⃣ Сегодня
@@ -522,6 +542,7 @@ P.S. Для согласования плана действий - пришли�
     const guyCorner = document.getElementById('guyCorner');
     const handAnchor = document.getElementById('handAnchor');
     const decorLayer = document.getElementById('decorLayer');
+    const scatterLayer = document.getElementById('scatterLayer');
     const rainLayer = document.getElementById('rainLayer');
     const groundLayer = document.getElementById('groundLayer');
     const burstLayer = document.getElementById('burstLayer');
@@ -535,6 +556,51 @@ P.S. Для согласования плана действий - пришли�
     const maxGroundPetals = 120;
     let opened = false;
     let windLock = false;
+
+
+    function getExclusionRect() {
+      const activeLetter = letterSlot.querySelector('.letter.rise');
+      const target = activeLetter || envelope;
+      if (!target) return null;
+      const rect = target.getBoundingClientRect();
+      const pad = activeLetter ? 22 : 18;
+      return {
+        left: rect.left - pad,
+        right: rect.right + pad,
+        top: rect.top - pad,
+        bottom: rect.bottom + pad
+      };
+    }
+
+    function intersectsExclusion(x, y, size, exclusion) {
+      if (!exclusion) return false;
+      return x + size > exclusion.left && x < exclusion.right && y + size > exclusion.top && y < exclusion.bottom;
+    }
+
+    function renderBackgroundScatter() {
+      scatterLayer.innerHTML = '';
+      const exclusion = getExclusionRect();
+      const count = window.innerWidth <= 480 ? 44 : 78;
+      let placed = 0;
+      let attempts = 0;
+      while (placed < count && attempts < count * 14) {
+        attempts += 1;
+        const size = 18 + Math.random() * 18;
+        const x = Math.random() * Math.max(40, window.innerWidth - size - 10);
+        const y = Math.random() * Math.max(40, window.innerHeight - size - 10);
+        if (intersectsExclusion(x, y, size + 12, exclusion)) continue;
+        const item = document.createElement('span');
+        item.className = 'scatter-flower';
+        item.textContent = flowers[Math.floor(Math.random() * flowers.length)];
+        item.style.setProperty('--x', `${x}px`);
+        item.style.setProperty('--y', `${y}px`);
+        item.style.setProperty('--size', `${size}px`);
+        item.style.setProperty('--rot', `${Math.random() * 60 - 30}deg`);
+        item.style.setProperty('--opacity', `${0.56 + Math.random() * 0.28}`);
+        scatterLayer.appendChild(item);
+        placed += 1;
+      }
+    }
 
     function createHearts() {
       for (let i = 0; i < 8; i++) {
@@ -654,7 +720,10 @@ P.S. Для согласования плана действий - пришли�
       seal.classList.add('hide');
       openBtn.classList.add('hide');
 
-      setTimeout(insertAndRaiseLetter, 350);
+      setTimeout(() => {
+        insertAndRaiseLetter();
+        setTimeout(renderBackgroundScatter, 70);
+      }, 350);
       setTimeout(() => {
         showGuy();
         requestAnimationFrame(createBurst);
@@ -722,8 +791,13 @@ P.S. Для согласования плана действий - пришли�
     }, { passive: true });
 
     createHearts();
+    renderBackgroundScatter();
     seedGround();
     startRain();
+
+    window.addEventListener('resize', () => {
+      renderBackgroundScatter();
+    });
   </script>
 </body>
 </html>
