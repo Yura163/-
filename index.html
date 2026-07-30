@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Письмо для буси 💌</title>
+  <link rel="preload" as="image" href="./guy.png">
   <style>
     :root {
       --env-w: 420px;
@@ -27,7 +28,9 @@
     [hidden] { display: none !important; }
 
     .decor-layer,
+    .scatter-layer,
     .rain-layer,
+    .clear-layer,
     .burst-layer,
     .wind-layer {
       position: fixed;
@@ -40,7 +43,8 @@
     .rain-layer { z-index: 2; }
     .ground-layer { position: fixed; left: 0; right: 0; bottom: 0; height: 105px; z-index: 3; pointer-events: none; }
     .scatter-layer { z-index: 4; }
-    .burst-layer { z-index: 22; }
+    .clear-layer { z-index: 5; }
+    .burst-layer { z-index: 51; }
     .wind-layer { z-index: 31; }
 
     .floating-heart {
@@ -66,6 +70,8 @@
       opacity: var(--opacity, .88);
       transform: translate3d(var(--x, 0px), var(--y, 0px), 0) rotate(var(--rot, 0deg));
       filter: drop-shadow(0 4px 4px rgba(0,0,0,.06));
+      transition: transform .42s cubic-bezier(.2,.72,.2,1), opacity .42s ease;
+      will-change: transform, opacity;
     }
 
     .falling-flower {
@@ -210,20 +216,34 @@
       box-shadow: 0 24px 58px rgba(89,63,33,.24), 0 4px 14px rgba(89,63,33,.12);
       opacity: 0;
       visibility: hidden;
-      transform: translateY(64px) scale(.92);
+      transform:
+        translate3d(var(--letter-start-x, 0px), var(--letter-start-y, 84px), 0)
+        scale(var(--letter-start-scale, .68))
+        rotateX(10deg);
+      clip-path: inset(58% 8% 0 8% round 10px);
       transform-origin: center bottom;
-      transition: transform .75s cubic-bezier(.22,.76,.22,1), opacity .32s ease, visibility 0s linear .75s;
+      transition:
+        transform .95s cubic-bezier(.18,.82,.2,1),
+        clip-path .82s cubic-bezier(.22,.72,.22,1),
+        opacity .34s ease,
+        visibility 0s linear .95s;
       pointer-events: none;
       scrollbar-width: thin;
       scrollbar-color: #dcb58a #f6ead7;
+      will-change: transform, opacity, clip-path;
     }
 
     .letter.rise {
       opacity: 1;
       visibility: visible;
-      transform: translateY(0) scale(1);
+      transform: translate3d(0, 0, 0) scale(1) rotateX(0deg);
+      clip-path: inset(0 0 0 0 round 15px);
       pointer-events: auto;
       transition-delay: 0s;
+    }
+
+    .letter.rise-complete {
+      will-change: auto;
     }
 
     .letter::-webkit-scrollbar { width: 7px; }
@@ -360,7 +380,7 @@
       left: 10px;
       bottom: 4px;
       width: var(--guy-w);
-      z-index: 20;
+      z-index: 50;
       pointer-events: none;
       cursor: pointer;
       opacity: 0;
@@ -418,6 +438,37 @@
       100% { transform: translate3d(calc(var(--sx) + var(--tx)), calc(var(--sy) + var(--ty)), 0) scale(var(--scale)) rotate(var(--spin)); opacity: 0; }
     }
 
+
+    .ambient-flower-exit {
+      position: fixed;
+      left: 0;
+      top: 0;
+      line-height: 1;
+      pointer-events: none;
+      z-index: 1;
+      contain: layout paint style;
+      will-change: transform, opacity;
+    }
+
+    body.is-ios .falling-flower,
+    body.is-ios .scatter-flower,
+    body.is-ios .ground-petal,
+    body.is-ios .burst-item,
+    body.is-ios .floating-heart {
+      filter: none;
+    }
+
+    body.is-ios .guy-img {
+      filter: drop-shadow(0 7px 10px rgba(0,0,0,.14));
+    }
+
+    .falling-flower,
+    .scatter-flower,
+    .ground-petal,
+    .burst-item {
+      contain: layout paint style;
+    }
+
     @media (max-width: 700px) {
       :root { --env-w: 350px; --env-h: 225px; --letter-w: 305px; --guy-w: 210px; }
       .envelope-stage { height: calc(var(--env-h) + 106px); }
@@ -450,6 +501,7 @@
 <body>
   <div class="decor-layer" id="decorLayer" aria-hidden="true"></div>
   <div class="scatter-layer" id="scatterLayer" aria-hidden="true"></div>
+  <div class="clear-layer" id="clearLayer" aria-hidden="true"></div>
   <div class="rain-layer" id="rainLayer" aria-hidden="true"></div>
   <div class="ground-layer" id="groundLayer" aria-hidden="true"></div>
   <div class="burst-layer" id="burstLayer" aria-hidden="true"></div>
@@ -458,7 +510,7 @@
 
   <div class="guy-corner is-mounted" id="guyCorner" aria-hidden="true" role="button" tabindex="-1" aria-label="Выпустить цветы">
     <div class="guy-inner">
-      <img class="guy-img" src="./guy.png" alt="" loading="eager">
+      <img class="guy-img" src="./guy.png" alt="" loading="eager" decoding="sync" fetchpriority="high">
       <span class="hand-anchor" id="handAnchor"></span>
     </div>
   </div>
@@ -547,21 +599,28 @@ P.S. Для согласования плана действий - пришли�
     const handAnchor = document.getElementById('handAnchor');
     const decorLayer = document.getElementById('decorLayer');
     const scatterLayer = document.getElementById('scatterLayer');
+    const clearLayer = document.getElementById('clearLayer');
     const rainLayer = document.getElementById('rainLayer');
     const groundLayer = document.getElementById('groundLayer');
     const burstLayer = document.getElementById('burstLayer');
     const windLayer = document.getElementById('windLayer');
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
+    const isIOS = /iP(ad|hone|od)/.test(navigator.userAgent)
+      || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    document.body.classList.toggle('is-ios', isIOS);
 
     const flowers = ['🌸','🌺','🌷','💮','🏵️','🌹'];
     const hearts = ['💕','💗','💖','💝','🩷','💘'];
     const burstSymbols = [...flowers, ...hearts, '✨'];
     const groundPetals = [];
     const settledBackgroundFlowers = [];
-    const maxGroundPetals = 160;
-    const maxSettledBackgroundFlowers = 260;
+    const maxGroundPetals = isIOS ? 64 : 160;
+    const maxSettledBackgroundFlowers = isIOS ? 90 : 260;
     let opened = false;
     let windLock = false;
+    let flowersEnabled = true;
+    let rainTimer = null;
 
 
     function getExclusionRect() {
@@ -583,45 +642,166 @@ P.S. Для согласования плана действий - пришли�
       return x + size > exclusion.left && x < exclusion.right && y + size > exclusion.top && y < exclusion.bottom;
     }
 
+    function isSpotOccupied(x, y, size, ignoreNode = null) {
+      const overlapChance = 0.08;
+      if (Math.random() < overlapChance) return false;
+      const nodes = settledBackgroundFlowers;
+      for (const node of nodes) {
+        if (!node || node === ignoreNode || !node.isConnected) continue;
+        const nx = Number(node.dataset.x || 0);
+        const ny = Number(node.dataset.y || 0);
+        const ns = Number(node.dataset.size || parseFloat(getComputedStyle(node).fontSize) || 20);
+        const cx = x + size / 2;
+        const cy = y + size / 2;
+        const ncx = nx + ns / 2;
+        const ncy = ny + ns / 2;
+        const minDist = (size + ns) * 0.34;
+        if (Math.hypot(cx - ncx, cy - ncy) < minDist) {
+          return true;
+        }
+      }
+      return false;
+    }
+
     function findSafeScatterSpot(size = 24) {
       const exclusion = getExclusionRect();
       let attempts = 0;
-      while (attempts < 80) {
+      while (attempts < 100) {
         attempts += 1;
         const x = Math.random() * Math.max(40, window.innerWidth - size - 10);
         const y = Math.random() * Math.max(40, window.innerHeight - size - 14);
-        if (!intersectsExclusion(x, y, size + 14, exclusion)) {
-          return { x, y };
-        }
+        if (intersectsExclusion(x, y, size + 14, exclusion)) continue;
+        if (isSpotOccupied(x, y, size)) continue;
+        return { x, y };
       }
       return { x: Math.random() * Math.max(40, window.innerWidth - size - 10), y: Math.random() * Math.max(40, window.innerHeight - size - 14) };
     }
 
     function addSettledBackgroundFlower(symbol, x, y, size = null) {
+      const actualSize = size ?? (16 + Math.random() * 16);
       const item = document.createElement('span');
       item.className = 'scatter-flower';
       item.textContent = symbol;
+      item.dataset.x = String(x);
+      item.dataset.y = String(y);
+      item.dataset.size = String(actualSize);
       item.style.setProperty('--x', `${x}px`);
       item.style.setProperty('--y', `${y}px`);
-      item.style.setProperty('--size', `${size ?? (16 + Math.random() * 16)}px`);
+      item.style.setProperty('--size', `${actualSize}px`);
       item.style.setProperty('--rot', `${Math.random() * 70 - 35}deg`);
       item.style.setProperty('--opacity', `${0.58 + Math.random() * 0.28}`);
       scatterLayer.appendChild(item);
       settledBackgroundFlowers.push(item);
       if (settledBackgroundFlowers.length > maxSettledBackgroundFlowers) {
-        settledBackgroundFlowers.shift()?.remove();
+        const old = settledBackgroundFlowers.shift();
+        old?.remove();
       }
     }
 
     function renderBackgroundScatter() {
+      if (!flowersEnabled) return;
       scatterLayer.innerHTML = '';
       settledBackgroundFlowers.length = 0;
-      const count = window.innerWidth <= 480 ? 34 : 56;
+      const count = isIOS ? (window.innerWidth <= 480 ? 14 : 22) : (window.innerWidth <= 480 ? 34 : 56);
       for (let i = 0; i < count; i++) {
         const size = 18 + Math.random() * 18;
         const spot = findSafeScatterSpot(size);
         addSettledBackgroundFlower(flowers[Math.floor(Math.random() * flowers.length)], spot.x, spot.y, size);
       }
+    }
+
+    function pruneSettledFlowers() {
+      for (let i = settledBackgroundFlowers.length - 1; i >= 0; i--) {
+        const node = settledBackgroundFlowers[i];
+        if (!node || !node.isConnected) settledBackgroundFlowers.splice(i, 1);
+      }
+      for (let i = groundPetals.length - 1; i >= 0; i--) {
+        const node = groundPetals[i];
+        if (!node || !node.isConnected) groundPetals.splice(i, 1);
+      }
+    }
+
+    function convertGroundPetalToScatter(node) {
+      const rect = node.getBoundingClientRect();
+      const size = parseFloat(getComputedStyle(node).fontSize) || 18;
+      const scatter = document.createElement('span');
+      scatter.className = 'scatter-flower';
+      scatter.textContent = node.textContent;
+      scatter.dataset.x = String(rect.left);
+      scatter.dataset.y = String(rect.top);
+      scatter.dataset.size = String(size);
+      scatter.style.setProperty('--x', `${rect.left}px`);
+      scatter.style.setProperty('--y', `${rect.top}px`);
+      scatter.style.setProperty('--size', `${size}px`);
+      scatter.style.setProperty('--rot', `${Math.random() * 70 - 35}deg`);
+      scatter.style.setProperty('--opacity', getComputedStyle(node).opacity || '.88');
+      scatterLayer.appendChild(scatter);
+      settledBackgroundFlowers.push(scatter);
+      node.remove();
+      return scatter;
+    }
+
+    function moveScatterFlower(node, nextX, nextY) {
+      node.dataset.x = String(nextX);
+      node.dataset.y = String(nextY);
+      node.style.setProperty('--x', `${nextX}px`);
+      node.style.setProperty('--y', `${nextY}px`);
+      const outMargin = 34;
+      const size = Number(node.dataset.size || 20);
+      if (nextX < -size - outMargin || nextX > window.innerWidth + outMargin || nextY < -size - outMargin || nextY > window.innerHeight + outMargin) {
+        node.remove();
+      }
+    }
+
+    function sweepFlowers(x, y, moveX = 0, moveY = -1, intensity = 1) {
+      if (!flowersEnabled) return;
+      pruneSettledFlowers();
+      const ring = document.createElement('span');
+      ring.className = 'wind-ring';
+      ring.style.left = `${x}px`;
+      ring.style.top = `${y}px`;
+      windLayer.appendChild(ring);
+      setTimeout(() => ring.remove(), 420);
+
+      let dirX = moveX;
+      let dirY = moveY;
+      const mag = Math.hypot(dirX, dirY);
+      const speedFactor = 0.22 + Math.min(1, mag / 42) * 0.78;
+      if (mag < 1.5) {
+        dirX = 0.92;
+        dirY = -0.34;
+      } else {
+        dirX /= mag;
+        dirY /= mag;
+      }
+
+      const radius = (coarsePointer || isIOS ? 155 : 130) * intensity;
+      const sweepables = [...settledBackgroundFlowers, ...groundPetals];
+      for (const originalNode of sweepables) {
+        if (!originalNode || !originalNode.isConnected) continue;
+        let node = originalNode;
+        if (node.classList.contains('ground-petal')) {
+          node = convertGroundPetalToScatter(node);
+        }
+        const currentX = Number(node.dataset.x || node.getBoundingClientRect().left || 0);
+        const currentY = Number(node.dataset.y || node.getBoundingClientRect().top || 0);
+        const size = Number(node.dataset.size || parseFloat(getComputedStyle(node).fontSize) || 20);
+        const centerX = currentX + size / 2;
+        const centerY = currentY + size / 2;
+        const dx = centerX - x;
+        const dy = centerY - y;
+        const dist = Math.hypot(dx, dy);
+        if (dist > radius) continue;
+        const local = 1 - dist / radius;
+        const baseTravel = (coarsePointer || isIOS ? 62 : 48) * intensity;
+        const localTravel = local * (coarsePointer || isIOS ? 88 : 68);
+        const travel = (baseTravel + localTravel) * speedFactor;
+        const pushX = dirX * travel + dx * 0.06 + (Math.random() * 8 - 4);
+        const pushY = dirY * travel + dy * 0.04 + (Math.random() * 7 - 3.5);
+        node.style.setProperty('--opacity', `${0.48 + Math.random() * 0.22}`);
+        moveScatterFlower(node, currentX + pushX, currentY + pushY);
+      }
+      pruneSettledFlowers();
     }
 
     function createHearts() {
@@ -654,18 +834,20 @@ P.S. Для согласования плана действий - пришли�
     }
 
     function seedGround() {
-      const count = Math.min(44, Math.floor(window.innerWidth / 18));
+      if (!flowersEnabled) return;
+      const count = isIOS ? Math.min(18, Math.floor(window.innerWidth / 30)) : Math.min(44, Math.floor(window.innerWidth / 18));
       for (let i = 0; i < count; i++) addGroundPetal(flowers[i % flowers.length], Math.random() * (window.innerWidth - 30));
     }
 
     function spawnFlower() {
+      if (!flowersEnabled || document.hidden) return;
       const el = document.createElement('span');
       el.className = 'falling-flower';
       el.textContent = flowers[Math.floor(Math.random() * flowers.length)];
       const x = Math.random() * window.innerWidth;
       const drift = Math.random() * 160 - 80;
       const duration = reducedMotion ? .1 : 6 + Math.random() * 3.4;
-      const settleInBackground = Math.random() < 0.78;
+      const settleInBackground = Math.random() < (isIOS ? 0.58 : 0.78);
       let targetY = 'calc(100vh - 78px)';
       let backgroundSpot = null;
       if (settleInBackground) {
@@ -690,8 +872,32 @@ P.S. Для согласования плана действий - пришли�
     }
 
     function startRain() {
-      for (let i = 0; i < (reducedMotion ? 8 : 22); i++) setTimeout(spawnFlower, i * 170);
-      setInterval(spawnFlower, reducedMotion ? 1200 : 320);
+      stopRain();
+      const initialCount = reducedMotion ? 5 : (isIOS ? 10 : 22);
+      const initialDelay = isIOS ? 260 : 170;
+      for (let i = 0; i < initialCount; i++) {
+        setTimeout(() => {
+          if (flowersEnabled) spawnFlower();
+        }, i * initialDelay);
+      }
+      rainTimer = setInterval(spawnFlower, reducedMotion ? 1400 : (isIOS ? 760 : 320));
+    }
+
+    function stopRain() {
+      if (rainTimer) {
+        clearInterval(rainTimer);
+        rainTimer = null;
+      }
+    }
+
+    function clearFlowers() {
+      stopRain();
+      rainLayer.replaceChildren();
+      scatterLayer.replaceChildren();
+      groundLayer.replaceChildren();
+      burstLayer.replaceChildren();
+      groundPetals.length = 0;
+      settledBackgroundFlowers.length = 0;
     }
 
     function showGuy() {
@@ -749,7 +955,28 @@ P.S. Для согласования плана действий - пришли�
       const letter = letterTemplate.content.firstElementChild.cloneNode(true);
       letterSlot.appendChild(letter);
       letterSlot.classList.add('active');
-      requestAnimationFrame(() => requestAnimationFrame(() => letter.classList.add('rise')));
+
+      const envelopeRect = envelope.getBoundingClientRect();
+      const letterRect = letter.getBoundingClientRect();
+      const envelopeCenterX = envelopeRect.left + envelopeRect.width / 2;
+      const envelopeOpeningY = envelopeRect.top + envelopeRect.height * 0.38;
+      const letterCenterX = letterRect.left + letterRect.width / 2;
+      const letterCenterY = letterRect.top + letterRect.height / 2;
+      const startScale = Math.max(0.56, Math.min(0.74, envelopeRect.width / letterRect.width * 0.78));
+
+      letter.style.setProperty('--letter-start-x', `${envelopeCenterX - letterCenterX}px`);
+      letter.style.setProperty('--letter-start-y', `${envelopeOpeningY - letterCenterY}px`);
+      letter.style.setProperty('--letter-start-scale', String(startScale));
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          letter.classList.add('rise');
+          letter.addEventListener('transitionend', (event) => {
+            if (event.propertyName !== 'transform') return;
+            letter.classList.add('rise-complete');
+          }, { once: true });
+        });
+      });
     }
 
     function openEnvelope() {
@@ -762,39 +989,11 @@ P.S. Для согласования плана действий - пришли�
       setTimeout(() => {
         insertAndRaiseLetter();
         setTimeout(renderBackgroundScatter, 70);
-      }, 350);
+      }, 420);
       setTimeout(() => {
         showGuy();
         requestAnimationFrame(createBurst);
-      }, 560);
-    }
-
-    function windAt(x, y, intensity = 1) {
-      const ring = document.createElement('span');
-      ring.className = 'wind-ring';
-      ring.style.left = `${x}px`;
-      ring.style.top = `${y}px`;
-      windLayer.appendChild(ring);
-      setTimeout(() => ring.remove(), 540);
-
-      const radius = 145 * intensity;
-      groundPetals.forEach((petal) => {
-        const rect = petal.getBoundingClientRect();
-        const dx = rect.left + rect.width / 2 - x;
-        const dy = rect.top + rect.height / 2 - y;
-        const dist = Math.hypot(dx, dy);
-        if (dist >= radius) return;
-        const force = (1 - dist / radius) * 44 * intensity;
-        const pushX = (dx >= 0 ? 1 : -1) * (18 + force);
-        const pushY = -(8 + force * .55);
-        petal.style.transform = `${petal.dataset.base} translate(${pushX}px, ${pushY}px) rotate(${(dx >= 0 ? 1 : -1) * (18 + force)}deg)`;
-        petal.style.opacity = '.75';
-        clearTimeout(petal._reset);
-        petal._reset = setTimeout(() => {
-          petal.style.transform = petal.dataset.base;
-          petal.style.opacity = '.92';
-        }, 460);
-      });
+      }, 610);
     }
 
     openBtn.addEventListener('click', openEnvelope);
@@ -816,18 +1015,69 @@ P.S. Для согласования плана действий - пришли�
       }
     });
 
-    document.addEventListener('pointermove', (event) => {
-      if (reducedMotion || windLock) return;
-      windLock = true;
-      windAt(event.clientX, event.clientY, .9);
-      setTimeout(() => windLock = false, 85);
+    let lastSweepPoint = null;
+
+    function isInteractiveTarget(target) {
+      return !!target?.closest('#envelope, #openBtn, #guyCorner, .letter');
+    }
+
+    function handleSweepMove(pointX, pointY, target, forceIntensity = 1) {
+      if (!flowersEnabled || isInteractiveTarget(target)) return;
+      const prev = lastSweepPoint;
+      const dx = prev ? pointX - prev.x : 26;
+      const dy = prev ? pointY - prev.y : -10;
+      sweepFlowers(pointX, pointY, dx, dy, forceIntensity);
+      lastSweepPoint = { x: pointX, y: pointY };
+    }
+
+    if (!coarsePointer && !isIOS) {
+      document.addEventListener('pointermove', (event) => {
+        if (reducedMotion || windLock || !flowersEnabled) return;
+        windLock = true;
+        handleSweepMove(event.clientX, event.clientY, event.target, .82);
+        setTimeout(() => windLock = false, 80);
+      }, { passive: true });
+      document.addEventListener('pointerleave', () => { lastSweepPoint = null; });
+    }
+
+    document.addEventListener('pointerdown', (event) => {
+      if (isInteractiveTarget(event.target)) return;
+      lastSweepPoint = { x: event.clientX, y: event.clientY };
+      handleSweepMove(event.clientX, event.clientY, event.target, .88);
     }, { passive: true });
 
-    document.addEventListener('click', (event) => windAt(event.clientX, event.clientY, 1.15), { passive: true });
+    document.addEventListener('pointerup', () => {
+      lastSweepPoint = null;
+    }, { passive: true });
+
     document.addEventListener('touchstart', (event) => {
       const t = event.touches?.[0];
-      if (t && !reducedMotion) windAt(t.clientX, t.clientY, 1.05);
+      if (!t) return;
+      if (isInteractiveTarget(event.target)) return;
+      lastSweepPoint = { x: t.clientX, y: t.clientY };
+      handleSweepMove(t.clientX, t.clientY, event.target, .86);
     }, { passive: true });
+
+    document.addEventListener('touchmove', (event) => {
+      const t = event.touches?.[0];
+      if (!t || reducedMotion || windLock) return;
+      if (isInteractiveTarget(event.target)) return;
+      windLock = true;
+      handleSweepMove(t.clientX, t.clientY, event.target, .92);
+      setTimeout(() => windLock = false, isIOS ? 85 : 65);
+    }, { passive: true });
+
+    document.addEventListener('touchend', () => {
+      lastSweepPoint = null;
+    }, { passive: true });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        stopRain();
+      } else if (flowersEnabled) {
+        startRain();
+      }
+    });
 
     createHearts();
     renderBackgroundScatter();
@@ -835,7 +1085,7 @@ P.S. Для согласования плана действий - пришли�
     startRain();
 
     window.addEventListener('resize', () => {
-      renderBackgroundScatter();
+      if (flowersEnabled) renderBackgroundScatter();
     });
   </script>
 </body>
