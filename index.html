@@ -40,7 +40,7 @@
     .rain-layer { z-index: 2; }
     .ground-layer { position: fixed; left: 0; right: 0; bottom: 0; height: 105px; z-index: 3; pointer-events: none; }
     .scatter-layer { z-index: 4; }
-    .burst-layer { z-index: 4; }
+    .burst-layer { z-index: 22; }
     .wind-layer { z-index: 31; }
 
     .floating-heart {
@@ -84,7 +84,7 @@
       0% { transform: translate3d(var(--x), -60px, 0) rotate(0deg); opacity: 0; }
       8% { opacity: .95; }
       90% { opacity: .9; }
-      100% { transform: translate3d(calc(var(--x) + var(--drift)), calc(100vh - 78px), 0) rotate(var(--spin)); opacity: .25; }
+      100% { transform: translate3d(calc(var(--x) + var(--drift)), var(--end-y, calc(100vh - 78px)), 0) rotate(var(--spin)); opacity: .25; }
     }
 
     .ground-layer::before {
@@ -367,7 +367,11 @@
       visibility: hidden;
       transform: translate3d(-28px, 20px, 0) scale(.92);
       transform-origin: bottom left;
-      transition: opacity .45s ease, transform .55s cubic-bezier(.22,.8,.22,1), visibility 0s linear .55s;
+      transition: opacity .32s ease, transform .42s cubic-bezier(.22,.8,.22,1), visibility 0s linear .42s;
+    }
+
+    .guy-corner.is-mounted {
+      display: block !important;
     }
 
     .guy-corner.show {
@@ -422,20 +426,20 @@
     }
 
     @media (max-width: 480px) {
-      :root { --env-w: 294px; --env-h: 189px; --letter-w: 256px; --guy-w: 154px; }
+      :root { --env-w: 294px; --env-h: 189px; --letter-w: 256px; --guy-w: 136px; }
       .scene { padding: 10px 8px 122px; }
       .envelope-stage { height: calc(var(--env-h) + 88px); }
       .seal { width: 86px; height: 86px; padding: 13px; font-size: 9.5px; border-width: 3px; }
       .seal::before { inset: 9px; border-width: 1.5px; }
       .letter-slot {
-        padding: 16px 10px calc(190px + env(safe-area-inset-bottom, 0px));
+        padding: 14px 10px calc(220px + env(safe-area-inset-bottom, 0px));
         align-content: start;
         justify-items: center;
       }
-      .letter { width: calc(100vw - 24px); max-height: 62vh; padding: 22px 19px 26px; margin-top: 24px; }
+      .letter { width: calc(100vw - 24px); max-height: 58vh; padding: 22px 19px 26px; margin-top: 12px; }
       .letter-content { font-size: 11.5px; line-height: 1.66; }
       .open-btn { width: min(100%, 290px); min-width: 0; font-size: 17px; padding: 14px 22px; }
-      .guy-corner { left: 8px; bottom: calc(env(safe-area-inset-bottom, 0px) + 8px); }
+      .guy-corner { left: 10px; bottom: calc(env(safe-area-inset-bottom, 0px) + 10px); }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -452,7 +456,7 @@
   <div class="wind-layer" id="windLayer" aria-hidden="true"></div>
   <div class="letter-slot" id="letterSlot" aria-live="polite"></div>
 
-  <div class="guy-corner" id="guyCorner" hidden aria-hidden="true" role="button" tabindex="-1" aria-label="Выпустить цветы">
+  <div class="guy-corner is-mounted" id="guyCorner" aria-hidden="true" role="button" tabindex="-1" aria-label="Выпустить цветы">
     <div class="guy-inner">
       <img class="guy-img" src="./guy.png" alt="" loading="eager">
       <span class="hand-anchor" id="handAnchor"></span>
@@ -553,7 +557,9 @@ P.S. Для согласования плана действий - пришли�
     const hearts = ['💕','💗','💖','💝','🩷','💘'];
     const burstSymbols = [...flowers, ...hearts, '✨'];
     const groundPetals = [];
-    const maxGroundPetals = 120;
+    const settledBackgroundFlowers = [];
+    const maxGroundPetals = 160;
+    const maxSettledBackgroundFlowers = 260;
     let opened = false;
     let windLock = false;
 
@@ -577,28 +583,44 @@ P.S. Для согласования плана действий - пришли�
       return x + size > exclusion.left && x < exclusion.right && y + size > exclusion.top && y < exclusion.bottom;
     }
 
+    function findSafeScatterSpot(size = 24) {
+      const exclusion = getExclusionRect();
+      let attempts = 0;
+      while (attempts < 80) {
+        attempts += 1;
+        const x = Math.random() * Math.max(40, window.innerWidth - size - 10);
+        const y = Math.random() * Math.max(40, window.innerHeight - size - 14);
+        if (!intersectsExclusion(x, y, size + 14, exclusion)) {
+          return { x, y };
+        }
+      }
+      return { x: Math.random() * Math.max(40, window.innerWidth - size - 10), y: Math.random() * Math.max(40, window.innerHeight - size - 14) };
+    }
+
+    function addSettledBackgroundFlower(symbol, x, y, size = null) {
+      const item = document.createElement('span');
+      item.className = 'scatter-flower';
+      item.textContent = symbol;
+      item.style.setProperty('--x', `${x}px`);
+      item.style.setProperty('--y', `${y}px`);
+      item.style.setProperty('--size', `${size ?? (16 + Math.random() * 16)}px`);
+      item.style.setProperty('--rot', `${Math.random() * 70 - 35}deg`);
+      item.style.setProperty('--opacity', `${0.58 + Math.random() * 0.28}`);
+      scatterLayer.appendChild(item);
+      settledBackgroundFlowers.push(item);
+      if (settledBackgroundFlowers.length > maxSettledBackgroundFlowers) {
+        settledBackgroundFlowers.shift()?.remove();
+      }
+    }
+
     function renderBackgroundScatter() {
       scatterLayer.innerHTML = '';
-      const exclusion = getExclusionRect();
-      const count = window.innerWidth <= 480 ? 44 : 78;
-      let placed = 0;
-      let attempts = 0;
-      while (placed < count && attempts < count * 14) {
-        attempts += 1;
+      settledBackgroundFlowers.length = 0;
+      const count = window.innerWidth <= 480 ? 34 : 56;
+      for (let i = 0; i < count; i++) {
         const size = 18 + Math.random() * 18;
-        const x = Math.random() * Math.max(40, window.innerWidth - size - 10);
-        const y = Math.random() * Math.max(40, window.innerHeight - size - 10);
-        if (intersectsExclusion(x, y, size + 12, exclusion)) continue;
-        const item = document.createElement('span');
-        item.className = 'scatter-flower';
-        item.textContent = flowers[Math.floor(Math.random() * flowers.length)];
-        item.style.setProperty('--x', `${x}px`);
-        item.style.setProperty('--y', `${y}px`);
-        item.style.setProperty('--size', `${size}px`);
-        item.style.setProperty('--rot', `${Math.random() * 60 - 30}deg`);
-        item.style.setProperty('--opacity', `${0.56 + Math.random() * 0.28}`);
-        scatterLayer.appendChild(item);
-        placed += 1;
+        const spot = findSafeScatterSpot(size);
+        addSettledBackgroundFlower(flowers[Math.floor(Math.random() * flowers.length)], spot.x, spot.y, size);
       }
     }
 
@@ -632,7 +654,7 @@ P.S. Для согласования плана действий - пришли�
     }
 
     function seedGround() {
-      const count = Math.min(28, Math.floor(window.innerWidth / 27));
+      const count = Math.min(44, Math.floor(window.innerWidth / 18));
       for (let i = 0; i < count; i++) addGroundPetal(flowers[i % flowers.length], Math.random() * (window.innerWidth - 30));
     }
 
@@ -642,33 +664,50 @@ P.S. Для согласования плана действий - пришли�
       el.textContent = flowers[Math.floor(Math.random() * flowers.length)];
       const x = Math.random() * window.innerWidth;
       const drift = Math.random() * 160 - 80;
-      const duration = reducedMotion ? .1 : 6.2 + Math.random() * 3.8;
+      const duration = reducedMotion ? .1 : 6 + Math.random() * 3.4;
+      const settleInBackground = Math.random() < 0.78;
+      let targetY = 'calc(100vh - 78px)';
+      let backgroundSpot = null;
+      if (settleInBackground) {
+        backgroundSpot = findSafeScatterSpot(24);
+        targetY = `${Math.max(0, backgroundSpot.y)}px`;
+      }
       el.style.setProperty('--x', `${x}px`);
       el.style.setProperty('--drift', `${drift}px`);
+      el.style.setProperty('--end-y', targetY);
       el.style.setProperty('--spin', `${Math.random() * 360 - 180}deg`);
       el.style.setProperty('--size', `${16 + Math.random() * 15}px`);
       el.style.setProperty('--duration', `${duration}s`);
       rainLayer.appendChild(el);
       el.addEventListener('animationend', () => {
-        addGroundPetal(el.textContent, x + drift);
+        if (backgroundSpot) {
+          addSettledBackgroundFlower(el.textContent, backgroundSpot.x, backgroundSpot.y, 16 + Math.random() * 15);
+        } else {
+          addGroundPetal(el.textContent, x + drift);
+        }
         el.remove();
       }, { once: true });
     }
 
     function startRain() {
-      for (let i = 0; i < (reducedMotion ? 5 : 12); i++) setTimeout(spawnFlower, i * 300);
-      setInterval(spawnFlower, reducedMotion ? 1800 : 720);
+      for (let i = 0; i < (reducedMotion ? 8 : 22); i++) setTimeout(spawnFlower, i * 170);
+      setInterval(spawnFlower, reducedMotion ? 1200 : 320);
     }
 
     function showGuy() {
-      guyCorner.hidden = false;
       guyCorner.setAttribute('aria-hidden', 'false');
       guyCorner.tabIndex = 0;
-      requestAnimationFrame(() => {
+      guyCorner.classList.add('is-mounted');
+      const img = guyCorner.querySelector('.guy-img');
+      const reveal = () => {
         guyCorner.classList.add('show');
         guyCorner.classList.add('throwing');
         setTimeout(() => guyCorner.classList.remove('throwing'), 1800);
-      });
+      };
+      if (img && !img.complete) {
+        img.addEventListener('load', () => requestAnimationFrame(reveal), { once: true });
+      }
+      requestAnimationFrame(reveal);
     }
 
     function releaseFlowersFromGuy() {
@@ -683,11 +722,11 @@ P.S. Для согласования плана действий - пришли�
     function createBurst() {
       const hand = handAnchor.getBoundingClientRect();
       const env = envelope.getBoundingClientRect();
-      const sx = hand.left + hand.width / 2;
-      const sy = hand.top + hand.height / 2;
+      const sx = hand.left + hand.width / 2 + 12;
+      const sy = hand.top + hand.height / 2 - 8;
       const targetX = env.left + env.width * .52;
       const targetY = env.top + env.height * .18;
-      const count = reducedMotion ? 6 : 18;
+      const count = reducedMotion ? 8 : 22;
 
       for (let i = 0; i < count; i++) {
         const el = document.createElement('span');
