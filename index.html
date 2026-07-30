@@ -177,6 +177,91 @@
         inset 0 1px 0 rgba(255,255,255,.55),
         inset 0 -10px 18px rgba(111,72,31,.07);
       z-index: 1;
+      transition: transform .72s cubic-bezier(.2,.76,.2,1);
+    }
+
+    .env-open-flap {
+      position: absolute;
+      left: 0;
+      top: -67%;
+      width: 100%;
+      height: 68%;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(72%) scaleY(.18);
+      transform-origin: center bottom;
+      clip-path: polygon(50% 0, 100% 100%, 0 100%);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.28), transparent 34%),
+        linear-gradient(145deg, #f0dba8 0%, #dfbd7f 100%);
+      filter: drop-shadow(0 -3px 5px rgba(110,72,30,.12));
+      transition:
+        opacity .22s ease .18s,
+        transform .68s cubic-bezier(.2,.76,.2,1) .12s;
+    }
+
+    .envelope.open .env-open-flap {
+      opacity: 1;
+      transform: translateY(0) scaleY(1);
+    }
+
+    .env-paper-preview {
+      position: absolute;
+      left: 8%;
+      right: 8%;
+      bottom: 22%;
+      height: 84%;
+      z-index: 4;
+      overflow: hidden;
+      padding: 18px 20px;
+      border: 1px solid rgba(216, 192, 158, .66);
+      border-radius: 11px 11px 5px 5px;
+      color: rgba(93, 78, 55, .72);
+      background: linear-gradient(180deg, #fffefa 0%, #fff8ee 100%);
+      box-shadow: 0 10px 25px rgba(92,61,29,.16);
+      opacity: 0;
+      transform: translateY(72%) scale(.94);
+      transform-origin: center bottom;
+      transition:
+        transform .78s cubic-bezier(.18,.82,.2,1) .16s,
+        opacity .22s ease .18s;
+      pointer-events: none;
+    }
+
+    .env-paper-preview span {
+      display: block;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: clip;
+      font-size: 10px;
+      line-height: 1.55;
+      opacity: .78;
+    }
+
+    .env-paper-preview span + span {
+      margin-top: 2px;
+    }
+
+    .envelope.open .env-paper-preview {
+      opacity: 1;
+      transform: translateY(-43%) scale(1);
+    }
+
+    .envelope.open.letter-out .env-paper-preview {
+      transform: translateY(-58%) scale(.985);
+      opacity: .96;
+    }
+
+    .envelope.open.letter-out .env-back,
+    .envelope.open.letter-out .env-folds {
+      transform: translateY(112px);
+    }
+
+    .envelope.open .env-back {
+      box-shadow:
+        inset 0 8px 16px rgba(105,68,29,.08),
+        inset 0 -10px 18px rgba(111,72,31,.07);
     }
 
     .letter-slot {
@@ -220,7 +305,7 @@
         translate3d(var(--letter-start-x, 0px), var(--letter-start-y, 84px), 0)
         scale(var(--letter-start-scale, .68))
         rotateX(10deg);
-      clip-path: inset(58% 8% 0 8% round 10px);
+      clip-path: inset(46% 5% 0 5% round 10px);
       transform-origin: center bottom;
       transition:
         transform .95s cubic-bezier(.18,.82,.2,1),
@@ -263,6 +348,7 @@
       pointer-events: none;
       overflow: hidden;
       border-radius: 10px;
+      transition: transform .72s cubic-bezier(.2,.76,.2,1);
     }
 
     .env-folds svg {
@@ -483,11 +569,21 @@
       .seal { width: 86px; height: 86px; padding: 13px; font-size: 9.5px; border-width: 3px; }
       .seal::before { inset: 9px; border-width: 1.5px; }
       .letter-slot {
-        padding: 14px 10px calc(220px + env(safe-area-inset-bottom, 0px));
+        padding: 122px 10px calc(210px + env(safe-area-inset-bottom, 0px));
         align-content: start;
         justify-items: center;
       }
-      .letter { width: calc(100vw - 24px); max-height: 58vh; padding: 22px 19px 26px; margin-top: 12px; }
+      .letter { width: calc(100vw - 24px); max-height: 52vh; padding: 22px 19px 26px; margin-top: 0; }
+      .envelope.open.letter-out .env-open-flap {
+        transform: translateY(-28%) scaleY(1.05);
+      }
+      .envelope.open.letter-out .env-paper-preview {
+        transform: translateY(-96%) scale(.985);
+      }
+      .envelope.open.letter-out .env-back,
+      .envelope.open.letter-out .env-folds {
+        transform: translateY(144px);
+      }
       .letter-content { font-size: 11.5px; line-height: 1.66; }
       .open-btn { width: min(100%, 290px); min-width: 0; font-size: 17px; padding: 14px 22px; }
       .guy-corner { left: 10px; bottom: calc(env(safe-area-inset-bottom, 0px) + 10px); }
@@ -519,7 +615,13 @@
     <section class="stage">
       <div class="envelope-stage">
         <div class="envelope" id="envelope" role="button" tabindex="0" aria-label="Открыть конверт">
+          <div class="env-open-flap" aria-hidden="true"></div>
           <div class="env-back"></div>
+          <div class="env-paper-preview" id="envPaperPreview" aria-hidden="true">
+            <span>Привет, буся!</span>
+            <span>Как ты уже поняла, я вчера был мегабездельником.</span>
+            <span>Надеюсь эта маленькая цифровая жмякалка улыбнет тебя))</span>
+          </div>
           <div class="env-folds" aria-hidden="true">
             <svg viewBox="0 0 420 270" preserveAspectRatio="none" focusable="false">
               <defs>
@@ -591,6 +693,7 @@ P.S. Для согласования плана действий - пришли�
   <script>
     const envelope = document.getElementById('envelope');
     const envFlap = document.getElementById('envFlap');
+    const envPaperPreview = document.getElementById('envPaperPreview');
     const seal = document.getElementById('seal');
     const openBtn = document.getElementById('openBtn');
     const letterSlot = document.getElementById('letterSlot');
@@ -957,20 +1060,23 @@ P.S. Для согласования плана действий - пришли�
       letterSlot.classList.add('active');
 
       const envelopeRect = envelope.getBoundingClientRect();
+      const previewRect = envPaperPreview?.getBoundingClientRect();
       const letterRect = letter.getBoundingClientRect();
-      const envelopeCenterX = envelopeRect.left + envelopeRect.width / 2;
-      const envelopeOpeningY = envelopeRect.top + envelopeRect.height * 0.38;
+      const sourceRect = previewRect && previewRect.width > 0 ? previewRect : envelopeRect;
+      const sourceCenterX = sourceRect.left + sourceRect.width / 2;
+      const sourceCenterY = sourceRect.top + sourceRect.height * 0.56;
       const letterCenterX = letterRect.left + letterRect.width / 2;
       const letterCenterY = letterRect.top + letterRect.height / 2;
-      const startScale = Math.max(0.56, Math.min(0.74, envelopeRect.width / letterRect.width * 0.78));
+      const startScale = Math.max(0.58, Math.min(0.82, sourceRect.width / letterRect.width * .96));
 
-      letter.style.setProperty('--letter-start-x', `${envelopeCenterX - letterCenterX}px`);
-      letter.style.setProperty('--letter-start-y', `${envelopeOpeningY - letterCenterY}px`);
+      letter.style.setProperty('--letter-start-x', `${sourceCenterX - letterCenterX}px`);
+      letter.style.setProperty('--letter-start-y', `${sourceCenterY - letterCenterY}px`);
       letter.style.setProperty('--letter-start-scale', String(startScale));
 
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           letter.classList.add('rise');
+          setTimeout(() => envelope.classList.add('letter-out'), 360);
           letter.addEventListener('transitionend', (event) => {
             if (event.propertyName !== 'transform') return;
             letter.classList.add('rise-complete');
@@ -989,11 +1095,11 @@ P.S. Для согласования плана действий - пришли�
       setTimeout(() => {
         insertAndRaiseLetter();
         setTimeout(renderBackgroundScatter, 70);
-      }, 420);
+      }, 560);
       setTimeout(() => {
         showGuy();
         requestAnimationFrame(createBurst);
-      }, 610);
+      }, 690);
     }
 
     openBtn.addEventListener('click', openEnvelope);
